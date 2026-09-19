@@ -11,11 +11,13 @@
   const pizzaEl = $("#pizza");
   const pizzaWrap = $("#pizza-wrap");
   const sparkleLayer = $("#sparkle-layer");
+  const toppingLayer = $("#topping-layer");
   const completeMsg = $("#complete-msg");
   const countDoneEl = $("#count-done");
   const countTotalEl = $("#count-total");
   const habitListEl = $("#habit-list");
   const addForm = $("#add-form");
+  const addEmojiInput = $("#add-emoji");
   const addInput = $("#add-input");
   const addBtn = $("#add-btn");
   const fullHint = $("#full-hint");
@@ -411,6 +413,10 @@
       check.disabled = locked;
       check.addEventListener("click", () => toggleHabit(habit.id));
 
+      const topping = document.createElement("span");
+      topping.className = "habit-topping";
+      topping.textContent = habit.topping || "🍕";
+
       const name = document.createElement("span");
       name.className = "habit-name";
       name.textContent = habit.name;
@@ -428,7 +434,7 @@
       del.disabled = locked;
       del.addEventListener("click", () => removeHabit(habit.id));
 
-      li.append(check, name, tag, del);
+      li.append(check, topping, name, tag, del);
       habitListEl.appendChild(li);
     });
 
@@ -524,10 +530,12 @@
     e.preventDefault();
     if (state.boxed) return;
     const name = addInput.value.trim();
+    const topping = addEmojiInput.value.trim() || "🍕";
     if (!name || habits.length >= SLOTS) return;
-    habits.push({ id: uid(), name });
+    habits.push({ id: uid(), name, topping });
     persistHabits();
     addInput.value = "";
+    addEmojiInput.value = "";
     renderAll();
   });
 
@@ -537,9 +545,55 @@
     persistState();
     pizzaWrap.classList.remove("pulsing");
     sparkleLayer.classList.remove("show");
+    toppingLayer.classList.remove("show");
+    toppingLayer.innerHTML = "";
     completeMsg.classList.remove("show");
     renderAll();
   });
+
+  // ---------- my-pizza topping scatter (shown once all habits are done) ----------
+
+  function buildToppingLayout() {
+    const placed = [];
+    return habits.map((habit) => {
+      let x = 50;
+      let y = 50;
+      for (let tries = 0; tries < 20; tries++) {
+        const angle = Math.random() * 360;
+        const radius = 8 + Math.random() * 34;
+        const p = polar(angle, radius);
+        const clashes = placed.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < 12);
+        x = p.x;
+        y = p.y;
+        if (!clashes) break;
+      }
+      placed.push({ x, y });
+      return {
+        id: habit.id,
+        emoji: habit.topping || "🍕",
+        x: Math.round(x * 10) / 10,
+        y: Math.round(y * 10) / 10,
+        rot: Math.round(Math.random() * 36 - 18),
+        size: 20 + Math.round(Math.random() * 10),
+        delay: Math.round(Math.random() * 500) / 1000,
+      };
+    });
+  }
+
+  function renderToppingLayer() {
+    toppingLayer.innerHTML = "";
+    (state.toppingLayout || []).forEach((t) => {
+      const el = document.createElement("div");
+      el.className = "topping-emoji";
+      el.style.left = `${t.x}%`;
+      el.style.top = `${t.y}%`;
+      el.style.fontSize = `${t.size}px`;
+      el.style.animationDelay = `${t.delay}s`;
+      el.style.setProperty("--rot", `${t.rot}deg`);
+      el.textContent = t.emoji;
+      toppingLayer.appendChild(el);
+    });
+  }
 
   // ---------- completion sequence ----------
 
@@ -550,6 +604,8 @@
     sequenceRunning = true;
 
     if (skipAnimation) {
+      renderToppingLayer();
+      toppingLayer.classList.add("show");
       sparkleLayer.classList.add("show");
       completeMsg.classList.add("show");
       sequenceRunning = false;
@@ -560,15 +616,20 @@
 
     setTimeout(() => {
       pizzaWrap.classList.remove("pulsing");
+      finalizeCompletion();
+      renderToppingLayer();
+      toppingLayer.classList.add("show");
       sparkleLayer.classList.add("show");
       completeMsg.classList.add("show");
-      finalizeCompletion();
       sequenceRunning = false;
     }, 1800);
   }
 
   function finalizeCompletion() {
     state.boxed = true;
+    if (!state.toppingLayout) {
+      state.toppingLayout = buildToppingLayout();
+    }
     persistState();
 
     const already = history.some((h) => h.date === state.date);

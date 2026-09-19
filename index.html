@@ -22,6 +22,7 @@
             <div class="pizza-wrap" id="pizza-wrap">
               <div class="pizza-plate">
                 <div class="pizza" id="pizza"></div>
+                <div class="topping-layer" id="topping-layer"></div>
               </div>
             </div>
 
@@ -41,9 +42,11 @@
           <ul class="habit-list" id="habit-list"></ul>
 
           <form class="add-form" id="add-form">
+            <input type="text" id="add-emoji" class="emoji-input" maxlength="4" placeholder="🍕" autocomplete="off" title="토핑 이모지" />
             <input type="text" id="add-input" maxlength="20" placeholder="새 습관 이름 (예: 물 2L 마시기)" autocomplete="off" />
             <button type="submit" id="add-btn">추가</button>
           </form>
+          <p class="emoji-hint">습관마다 원하는 토핑 이모지를 자유롭게 골라보세요. 비워두면 🍕로 채워져요.</p>
           <p class="full-hint" id="full-hint">습관 8개가 모두 채워졌어요. 슬롯을 비우면 새로 추가할 수 있어요.</p>
 
           <div class="stats">

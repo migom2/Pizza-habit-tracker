@@ -112,6 +112,32 @@ body {
     0 14px 28px rgba(120, 74, 24, 0.22);
 }
 
+.topping-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: 4;
+}
+
+.topping-layer.show {
+  opacity: 1;
+}
+
+.topping-emoji {
+  position: absolute;
+  transform: translate(-50%, -50%) scale(0);
+  line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+  animation: topping-pop 0.5s cubic-bezier(.34, 1.7, .5, 1) forwards;
+}
+
+@keyframes topping-pop {
+  from { transform: translate(-50%, -50%) scale(0) rotate(-20deg); }
+  to { transform: translate(-50%, -50%) scale(1) rotate(var(--rot, 0deg)); }
+}
+
 .pizza {
   position: absolute;
   inset: 0;
@@ -327,6 +353,12 @@ body {
   color: #fff;
 }
 
+.habit-topping {
+  flex: 0 0 auto;
+  font-size: 16px;
+  line-height: 1;
+}
+
 .habit-name {
   flex: 1 1 auto;
   font-size: 14.5px;
@@ -374,8 +406,21 @@ body {
   outline: none;
 }
 
+.add-form input.emoji-input {
+  flex: 0 0 50px;
+  text-align: center;
+  font-size: 18px;
+  padding: 10px 4px;
+}
+
 .add-form input:focus {
   border-color: var(--accent);
+}
+
+.emoji-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .add-form button {
