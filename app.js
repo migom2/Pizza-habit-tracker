@@ -472,31 +472,43 @@
 
   // ---------- my-pizza topping scatter (shown once all habits are done) ----------
 
+  function shuffledIndexes(n) {
+    const a = Array.from({ length: n }, (_, i) => i);
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // 3 concentric rings x N habits, each ring a shuffled full pass over every
+  // habit, so every topping appears exactly 3x and stays evenly spread out
+  // (even radially and angularly) while which habit lands where is randomized.
+  const TOPPING_RINGS = [14, 25, 36];
+
   function buildToppingLayout() {
-    const placed = [];
-    return habits.map((habit) => {
-      let x = 50;
-      let y = 50;
-      for (let tries = 0; tries < 20; tries++) {
-        const angle = Math.random() * 360;
-        const radius = 8 + Math.random() * 34;
+    const n = habits.length;
+    if (n === 0) return [];
+    const layout = [];
+    TOPPING_RINGS.forEach((ringRadius) => {
+      const order = shuffledIndexes(n);
+      order.forEach((habitIdx, slot) => {
+        const habit = habits[habitIdx];
+        const angle = (slot + 0.5) * (360 / n) - 90 + (Math.random() * 10 - 5);
+        const radius = ringRadius + (Math.random() * 6 - 3);
         const p = polar(angle, radius);
-        const clashes = placed.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < 12);
-        x = p.x;
-        y = p.y;
-        if (!clashes) break;
-      }
-      placed.push({ x, y });
-      return {
-        id: habit.id,
-        emoji: habit.topping || "🍕",
-        x: Math.round(x * 10) / 10,
-        y: Math.round(y * 10) / 10,
-        rot: Math.round(Math.random() * 36 - 18),
-        size: 20 + Math.round(Math.random() * 10),
-        delay: Math.round(Math.random() * 500) / 1000,
-      };
+        layout.push({
+          id: habit.id,
+          emoji: habit.topping || "🍕",
+          x: Math.round(p.x * 10) / 10,
+          y: Math.round(p.y * 10) / 10,
+          rot: Math.round(Math.random() * 36 - 18),
+          size: 14 + Math.round(Math.random() * 6),
+          delay: Math.round(Math.random() * 700) / 1000,
+        });
+      });
     });
+    return layout;
   }
 
   function renderToppingLayer() {
