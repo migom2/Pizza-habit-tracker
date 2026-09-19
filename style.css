@@ -67,7 +67,7 @@ body {
 }
 
 @media (max-width: 760px) {
-  .board { grid-template-columns: 1fr; }
+  .board { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---------- Mode tabs ---------- */
@@ -436,6 +436,7 @@ body {
 
 .add-form input {
   flex: 1 1 auto;
+  min-width: 0;
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid #e6d3ae;
