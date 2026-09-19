@@ -2,37 +2,8 @@
   "use strict";
 
   const SLOTS = 8;
-  const STORAGE_HABITS = "pizza-habit-habits-v1";
-  const STORAGE_STATE = "pizza-habit-state-v1";
-  const STORAGE_HISTORY = "pizza-habit-history-v1";
 
-  const $ = (sel) => document.querySelector(sel);
-
-  const pizzaEl = $("#pizza");
-  const pizzaWrap = $("#pizza-wrap");
-  const sparkleLayer = $("#sparkle-layer");
-  const completeMsg = $("#complete-msg");
-  const countDoneEl = $("#count-done");
-  const countTotalEl = $("#count-total");
-  const habitListEl = $("#habit-list");
-  const addForm = $("#add-form");
-  const addEmojiInput = $("#add-emoji");
-  const addInput = $("#add-input");
-  const addBtn = $("#add-btn");
-  const fullHint = $("#full-hint");
-  const statStreak = $("#stat-streak");
-  const statTotal = $("#stat-total");
-  const resetBtn = $("#reset-btn");
-  const specialBase = $("#special-base");
-  const specialHint = $("#special-hint");
-  const specialCompleteMsg = $("#special-complete-msg");
-  const toppingLayer = $("#topping-layer");
-  const calTitle = $("#cal-title");
-  const calGrid = $("#calendar-grid");
-  const calPrevBtn = $("#cal-prev");
-  const calNextBtn = $("#cal-next");
-
-  // ---------- utils ----------
+  // ---------- generic utils ----------
 
   function todayStr(d = new Date()) {
     const y = d.getFullYear();
@@ -69,52 +40,6 @@
     }
   }
 
-  // ---------- state ----------
-
-  let habits = loadJSON(STORAGE_HABITS, []); // [{id, name}]
-  let state = loadJSON(STORAGE_STATE, null); // {date, completed: {id:true}, boxed: bool}
-  let history = loadJSON(STORAGE_HISTORY, []); // [{date, names}]
-
-  const today = todayStr();
-
-  if (!state || state.date !== today) {
-    state = { date: today, completed: {}, boxed: false };
-    saveJSON(STORAGE_STATE, state);
-  }
-
-  function persistHabits() { saveJSON(STORAGE_HABITS, habits); }
-  function persistState() { saveJSON(STORAGE_STATE, state); }
-  function persistHistory() { saveJSON(STORAGE_HISTORY, history); }
-
-  // ---------- pizza slice geometry ----------
-
-  function buildSlices() {
-    pizzaEl.innerHTML = "";
-    for (let i = 0; i < SLOTS; i++) {
-      const a0 = (i * 360) / SLOTS - 90;
-      const a1 = ((i + 1) * 360) / SLOTS - 90;
-      const r = 80; // beyond circle radius so the parent's circular clip forms the arc
-      const p0 = polar(a0, r);
-      const p1 = polar(a1, r);
-
-      const slice = document.createElement("div");
-      slice.className = "slice";
-      slice.dataset.index = String(i);
-      slice.style.clipPath = `polygon(50% 50%, ${p0.x}% ${p0.y}%, ${p1.x}% ${p1.y}%)`;
-
-      const empty = document.createElement("div");
-      empty.className = "slice-empty";
-
-      const img = document.createElement("div");
-      img.className = "slice-img";
-      img.style.backgroundImage = PIZZA_ART_URL;
-
-      slice.appendChild(empty);
-      slice.appendChild(img);
-      pizzaEl.appendChild(slice);
-    }
-  }
-
   function polar(angleDeg, radiusPct) {
     const rad = (angleDeg * Math.PI) / 180;
     return {
@@ -123,7 +48,18 @@
     };
   }
 
-  // ---------- hand-drawn cartoon pizza artwork (SVG, generated once) ----------
+  function shuffledIndexes(n) {
+    const a = Array.from({ length: n }, (_, i) => i);
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  const today = todayStr();
+
+  // ---------- pizza artwork (shared, generated once) ----------
 
   const PIZZA_CX = 130;
   const PIZZA_CY = 130;
@@ -209,13 +145,11 @@
     const sauceR = 108;
     const cheeseR = 100;
 
-    // soft two-tone shading: a light sheen and a gentle shadow, flat clip-art style
     const shading = `
       <ellipse cx="96" cy="82" rx="72" ry="50" fill="#fff" opacity="0.16"/>
       <ellipse cx="168" cy="178" rx="70" ry="46" fill="#c1432b" opacity="0.08"/>
     `;
 
-    // melty cheese blotches (flat, no outline)
     let blotches = "";
     for (let k = 0; k < 9; k++) {
       const a = k * 40 + (k % 2) * 12;
@@ -224,7 +158,6 @@
       blotches += `<ellipse cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" rx="11" ry="7" fill="#f9d76b" opacity="0.7" transform="rotate(${a} ${p.x.toFixed(1)} ${p.y.toFixed(1)})"/>`;
     }
 
-    // toppings, alternating pattern per slice so it reads as a varied pizza
     let toppings = "";
     if (withToppings) {
       for (let i = 0; i < SLOTS; i++) {
@@ -241,7 +174,6 @@
       }
     }
 
-    // slice cut-lines
     let cuts = "";
     for (let i = 0; i < SLOTS; i++) {
       const a = i * 45 - 90;
@@ -264,15 +196,10 @@
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   }
 
-  // main tracker pizza keeps its classic pre-drawn toppings
-  const PIZZA_ART_URL = buildPizzaArtwork(true);
-  // the "make your own pizza" corner starts bare so only chosen emoji toppings show
-  const BLANK_PIZZA_ART_URL = buildPizzaArtwork(false);
+  const TOPPED_PIZZA_URL = buildPizzaArtwork(true);
+  const BLANK_PIZZA_URL = buildPizzaArtwork(false);
 
-  buildSlices();
-  specialBase.style.backgroundImage = BLANK_PIZZA_ART_URL;
-
-  // ---------- celebration sparkles (placed around the pizza, twinkling) ----------
+  // ---------- celebration sparkles (shared shapes/layout, one instance per tracker) ----------
 
   function shapeStarBurst(color) {
     let lines = "";
@@ -357,130 +284,413 @@
     }
   }
 
-  function buildSparkleLayer() {
-    sparkleLayer.innerHTML = "";
+  function buildSparkleLayer(el) {
+    el.innerHTML = "";
     SPARKLE_LAYOUT.forEach((item, i) => {
       const p = polar(item.angle, item.radius);
       const color = SPARKLE_PALETTE[item.color % SPARKLE_PALETTE.length];
-      const el = document.createElement("div");
-      el.className = "sparkle";
-      el.style.left = `${p.x}%`;
-      el.style.top = `${p.y}%`;
-      el.style.width = `${item.size}px`;
-      el.style.height = `${item.size}px`;
-      el.style.animationDelay = `${item.delay}s`;
-      el.style.animationDuration = `${2.4 + (i % 5) * 0.35}s`;
-      el.innerHTML = `<svg viewBox="0 0 24 24">${sparkleShapeSVG(item, color)}</svg>`;
-      sparkleLayer.appendChild(el);
+      const sp = document.createElement("div");
+      sp.className = "sparkle";
+      sp.style.left = `${p.x}%`;
+      sp.style.top = `${p.y}%`;
+      sp.style.width = `${item.size}px`;
+      sp.style.height = `${item.size}px`;
+      sp.style.animationDelay = `${item.delay}s`;
+      sp.style.animationDuration = `${2.4 + (i % 5) * 0.35}s`;
+      sp.innerHTML = `<svg viewBox="0 0 24 24">${sparkleShapeSVG(item, color)}</svg>`;
+      el.appendChild(sp);
     });
   }
 
-  buildSparkleLayer();
+  // ---------- topping scatter (custom tracker only) ----------
 
-  // ---------- rendering ----------
+  // 7 concentric rings x N habits, each ring a shuffled full pass over every
+  // habit, so every topping appears exactly 7x and stays evenly spread out
+  // (even radially and angularly) while which habit lands where, and how big
+  // each instance is, is randomized.
+  const TOPPING_RINGS = [6, 11, 16, 21, 26, 31, 36];
 
-  function isCompletedToday(id) {
-    return !!state.completed[id];
+  function buildToppingLayout(habits) {
+    const n = habits.length;
+    if (n === 0) return [];
+    const layout = [];
+    const slotWidth = 360 / n;
+    TOPPING_RINGS.forEach((ringRadius, ringIdx) => {
+      const order = shuffledIndexes(n);
+      const ringOffset = (ringIdx / TOPPING_RINGS.length) * slotWidth;
+      order.forEach((habitIdx, slot) => {
+        const habit = habits[habitIdx];
+        const angle = (slot + 0.5) * slotWidth - 90 + ringOffset + (Math.random() * slotWidth * 0.5 - slotWidth * 0.25);
+        const radius = ringRadius + (Math.random() * 6 - 3);
+        const p = polar(angle, radius);
+        layout.push({
+          id: habit.id,
+          emoji: habit.topping || "🍕",
+          x: Math.round(p.x * 10) / 10,
+          y: Math.round(p.y * 10) / 10,
+          rot: Math.round(Math.random() * 36 - 18),
+          size: 9 + Math.round(Math.random() * 17),
+          delay: Math.round(Math.random() * 700) / 1000,
+        });
+      });
+    });
+    return layout;
   }
 
-  function completedCount() {
-    return habits.filter((h) => isCompletedToday(h.id)).length;
-  }
+  // ---------- tracker factory (shared by default + custom trackers) ----------
 
-  function renderPizza() {
-    const sliceEls = pizzaEl.querySelectorAll(".slice");
-    sliceEls.forEach((el, i) => {
-      const habit = habits[i];
-      el.classList.remove("filled", "placeholder");
-      if (!habit) {
-        el.classList.add("placeholder");
-      } else if (isCompletedToday(habit.id)) {
-        el.classList.add("filled");
+  function createTracker(cfg) {
+    const $ = (name) => cfg.root.querySelector(`[data-el="${name}"]`);
+
+    const pizzaWrap = $("pizzaWrap");
+    const sparkleLayer = $("sparkleLayer");
+    const completeMsg = $("completeMsg");
+    const countDoneEl = $("countDone");
+    const countTotalEl = $("countTotal");
+    const habitListEl = $("habitList");
+    const addForm = $("addForm");
+    const addInput = $("addInput");
+    const addEmojiInput = cfg.hasEmoji ? $("addEmoji") : null;
+    const addBtn = $("addBtn");
+    const fullHint = $("fullHint");
+    const statStreak = $("statStreak");
+    const statTotal = $("statTotal");
+    const resetBtn = $("resetBtn");
+
+    const pizzaEl = cfg.sliced ? $("pizza") : null;
+    const pizzaBaseEl = cfg.sliced ? null : $("pizzaBase");
+    const toppingLayer = cfg.sliced ? null : $("toppingLayer");
+
+    let habits = loadJSON(cfg.keys.habits, []);
+    let state = loadJSON(cfg.keys.state, null);
+    let history = loadJSON(cfg.keys.history, []);
+
+    if (!state || state.date !== today) {
+      state = { date: today, completed: {}, boxed: false };
+      saveJSON(cfg.keys.state, state);
+    }
+
+    function persistHabits() { saveJSON(cfg.keys.habits, habits); }
+    function persistState() { saveJSON(cfg.keys.state, state); }
+    function persistHistory() { saveJSON(cfg.keys.history, history); }
+
+    function buildSlices() {
+      pizzaEl.innerHTML = "";
+      for (let i = 0; i < SLOTS; i++) {
+        const a0 = (i * 360) / SLOTS - 90;
+        const a1 = ((i + 1) * 360) / SLOTS - 90;
+        const r = 80;
+        const p0 = polar(a0, r);
+        const p1 = polar(a1, r);
+
+        const slice = document.createElement("div");
+        slice.className = "slice";
+        slice.style.clipPath = `polygon(50% 50%, ${p0.x}% ${p0.y}%, ${p1.x}% ${p1.y}%)`;
+
+        const empty = document.createElement("div");
+        empty.className = "slice-empty";
+
+        const img = document.createElement("div");
+        img.className = "slice-img";
+        img.style.backgroundImage = TOPPED_PIZZA_URL;
+
+        slice.appendChild(empty);
+        slice.appendChild(img);
+        pizzaEl.appendChild(slice);
       }
-    });
-    const done = completedCount();
-    countDoneEl.textContent = String(done);
-    countTotalEl.textContent = String(SLOTS);
-  }
+    }
 
-  function renderHabitList() {
-    habitListEl.innerHTML = "";
-    const locked = state.boxed;
-
-    habits.forEach((habit, i) => {
-      const li = document.createElement("li");
-      li.className = "habit-item" + (isCompletedToday(habit.id) ? " done" : "");
-
-      const check = document.createElement("button");
-      check.type = "button";
-      check.className = "habit-check";
-      check.textContent = "✓";
-      check.disabled = locked;
-      check.addEventListener("click", () => toggleHabit(habit.id));
-
-      const topping = document.createElement("span");
-      topping.className = "habit-topping";
-      topping.textContent = habit.topping || "🍕";
-
-      const name = document.createElement("span");
-      name.className = "habit-name";
-      name.textContent = habit.name;
-      name.addEventListener("click", () => { if (!locked) toggleHabit(habit.id); });
-
-      const tag = document.createElement("span");
-      tag.className = "habit-slice-tag";
-      tag.textContent = `#${i + 1}`;
-
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "habit-del";
-      del.textContent = "✕";
-      del.title = "습관 삭제";
-      del.disabled = locked;
-      del.addEventListener("click", () => removeHabit(habit.id));
-
-      li.append(check, topping, name, tag, del);
-      habitListEl.appendChild(li);
-    });
-
-    const canAdd = habits.length < SLOTS && !locked;
-    addInput.disabled = !canAdd;
-    addBtn.disabled = !canAdd;
-    fullHint.classList.toggle("show", habits.length >= SLOTS && !locked);
-  }
-
-  function renderStats() {
-    statTotal.textContent = String(history.length);
-    statStreak.textContent = String(computeStreak());
-  }
-
-  function computeStreak() {
-    const dates = new Set(history.map((h) => h.date));
-    let cursor = today;
-    let count = 0;
-    if (dates.has(cursor)) {
-      count = 1;
-      cursor = prevDateStr(cursor);
+    if (cfg.sliced) {
+      buildSlices();
     } else {
-      cursor = prevDateStr(cursor);
+      pizzaBaseEl.style.backgroundImage = BLANK_PIZZA_URL;
     }
-    while (dates.has(cursor)) {
-      count++;
-      cursor = prevDateStr(cursor);
+
+    buildSparkleLayer(sparkleLayer);
+
+    function isCompletedToday(id) {
+      return !!state.completed[id];
     }
-    return count;
+
+    function completedCount() {
+      return habits.filter((h) => isCompletedToday(h.id)).length;
+    }
+
+    function renderPizza() {
+      if (cfg.sliced) {
+        const sliceEls = pizzaEl.querySelectorAll(".slice");
+        sliceEls.forEach((el, i) => {
+          const habit = habits[i];
+          el.classList.remove("filled", "placeholder");
+          if (!habit) el.classList.add("placeholder");
+          else if (isCompletedToday(habit.id)) el.classList.add("filled");
+        });
+      }
+      countDoneEl.textContent = String(completedCount());
+      countTotalEl.textContent = String(SLOTS);
+    }
+
+    function renderHabitList() {
+      habitListEl.innerHTML = "";
+      const locked = state.boxed;
+
+      habits.forEach((habit, i) => {
+        const li = document.createElement("li");
+        li.className = "habit-item" + (isCompletedToday(habit.id) ? " done" : "");
+
+        const check = document.createElement("button");
+        check.type = "button";
+        check.className = "habit-check";
+        check.textContent = "✓";
+        check.disabled = locked;
+        check.addEventListener("click", () => toggleHabit(habit.id));
+
+        const nodes = [check];
+
+        if (cfg.hasEmoji) {
+          const topping = document.createElement("span");
+          topping.className = "habit-topping";
+          topping.textContent = habit.topping || "🍕";
+          nodes.push(topping);
+        }
+
+        const name = document.createElement("span");
+        name.className = "habit-name";
+        name.textContent = habit.name;
+        name.addEventListener("click", () => { if (!locked) toggleHabit(habit.id); });
+        nodes.push(name);
+
+        const tag = document.createElement("span");
+        tag.className = "habit-slice-tag";
+        tag.textContent = `#${i + 1}`;
+        nodes.push(tag);
+
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "habit-del";
+        del.textContent = "✕";
+        del.title = "습관 삭제";
+        del.disabled = locked;
+        del.addEventListener("click", () => removeHabit(habit.id));
+        nodes.push(del);
+
+        li.append(...nodes);
+        habitListEl.appendChild(li);
+      });
+
+      const canAdd = habits.length < SLOTS && !locked;
+      addInput.disabled = !canAdd;
+      if (addEmojiInput) addEmojiInput.disabled = !canAdd;
+      addBtn.disabled = !canAdd;
+      fullHint.classList.toggle("show", habits.length >= SLOTS && !locked);
+    }
+
+    function computeStreak() {
+      const dates = new Set(history.map((h) => h.date));
+      let cursor = today;
+      let count = 0;
+      if (dates.has(cursor)) {
+        count = 1;
+        cursor = prevDateStr(cursor);
+      } else {
+        cursor = prevDateStr(cursor);
+      }
+      while (dates.has(cursor)) {
+        count++;
+        cursor = prevDateStr(cursor);
+      }
+      return count;
+    }
+
+    function renderStats() {
+      statTotal.textContent = String(history.length);
+      statStreak.textContent = String(computeStreak());
+    }
+
+    function renderToppingReveal() {
+      toppingLayer.innerHTML = "";
+      (state.toppingLayout || []).forEach((t) => {
+        const el = document.createElement("div");
+        el.className = "topping-emoji";
+        el.style.left = `${t.x}%`;
+        el.style.top = `${t.y}%`;
+        el.style.fontSize = `${t.size}px`;
+        el.style.animationDelay = `${t.delay}s`;
+        el.style.setProperty("--rot", `${t.rot}deg`);
+        el.textContent = t.emoji;
+        toppingLayer.appendChild(el);
+      });
+      toppingLayer.classList.add("show");
+    }
+
+    function renderAll() {
+      renderPizza();
+      renderHabitList();
+      renderStats();
+    }
+
+    function toggleHabit(id) {
+      if (state.boxed) return;
+      if (state.completed[id]) delete state.completed[id];
+      else state.completed[id] = true;
+      persistState();
+      renderPizza();
+      renderHabitList();
+
+      if (habits.length === SLOTS && completedCount() === SLOTS) {
+        runCompleteSequence();
+      }
+    }
+
+    function removeHabit(id) {
+      if (state.boxed) return;
+      habits = habits.filter((h) => h.id !== id);
+      delete state.completed[id];
+      persistHabits();
+      persistState();
+      renderAll();
+    }
+
+    addForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (state.boxed) return;
+      const name = addInput.value.trim();
+      if (!name || habits.length >= SLOTS) return;
+      const habit = { id: uid(), name };
+      if (cfg.hasEmoji) habit.topping = addEmojiInput.value.trim() || "🍕";
+      habits.push(habit);
+      persistHabits();
+      addInput.value = "";
+      if (addEmojiInput) addEmojiInput.value = "";
+      renderAll();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      if (!confirm("오늘의 습관 체크 기록을 초기화할까요?")) return;
+      state = { date: today, completed: {}, boxed: false };
+      persistState();
+      pizzaWrap.classList.remove("pulsing");
+      sparkleLayer.classList.remove("show");
+      completeMsg.classList.remove("show");
+      if (!cfg.sliced) {
+        toppingLayer.classList.remove("show");
+        toppingLayer.innerHTML = "";
+      }
+      renderAll();
+    });
+
+    let sequenceRunning = false;
+
+    function runCompleteSequence(skipAnimation = false) {
+      if (sequenceRunning) return;
+      sequenceRunning = true;
+
+      const reveal = () => {
+        sparkleLayer.classList.add("show");
+        completeMsg.classList.add("show");
+        if (!cfg.sliced) renderToppingReveal();
+      };
+
+      if (skipAnimation) {
+        reveal();
+        sequenceRunning = false;
+        return;
+      }
+
+      pizzaWrap.classList.add("pulsing");
+      setTimeout(() => {
+        pizzaWrap.classList.remove("pulsing");
+        finalizeCompletion();
+        reveal();
+        sequenceRunning = false;
+      }, 1800);
+    }
+
+    function finalizeCompletion() {
+      state.boxed = true;
+      if (!cfg.sliced && !state.toppingLayout) {
+        state.toppingLayout = buildToppingLayout(habits);
+      }
+      persistState();
+
+      const already = history.some((h) => h.date === state.date);
+      if (!already) {
+        const entry = { date: state.date, names: habits.map((h) => h.name) };
+        if (!cfg.sliced) entry.layout = state.toppingLayout;
+        history.push(entry);
+        persistHistory();
+      }
+      renderHabitList();
+      renderStats();
+      if (cfg.onHistoryChange) cfg.onHistoryChange();
+    }
+
+    renderAll();
+    if (state.boxed) runCompleteSequence(true);
+
+    return { getHistory: () => history };
   }
 
-  // ---------- calendar: "이달의 피자" ----------
+  const defaultTracker = createTracker({
+    root: document.querySelector('[data-panel="default"]'),
+    keys: {
+      habits: "pizza-habit-habits-v1",
+      state: "pizza-habit-state-v1",
+      history: "pizza-habit-history-v1",
+    },
+    hasEmoji: false,
+    sliced: true,
+  });
+
+  const customTracker = createTracker({
+    root: document.querySelector('[data-panel="custom"]'),
+    keys: {
+      habits: "pizza-habit-habits-custom-v1",
+      state: "pizza-habit-state-custom-v1",
+      history: "pizza-habit-history-custom-v1",
+    },
+    hasEmoji: true,
+    sliced: false,
+    onHistoryChange: () => renderCalendar(),
+  });
+
+  // ---------- mode tabs ----------
+
+  const tabButtons = document.querySelectorAll(".mode-tab");
+  const panels = document.querySelectorAll(".mode-panel");
+
+  function setActiveMode(mode) {
+    tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+    panels.forEach((p) => { p.hidden = p.dataset.panel !== mode; });
+    try { localStorage.setItem("pizza-tracker-active-mode", mode); } catch { /* ignore */ }
+  }
+
+  tabButtons.forEach((b) => b.addEventListener("click", () => setActiveMode(b.dataset.mode)));
+
+  let savedMode = "default";
+  try {
+    savedMode = localStorage.getItem("pizza-tracker-active-mode") || "default";
+  } catch { /* ignore */ }
+  setActiveMode(savedMode === "custom" ? "custom" : "default");
+
+  // ---------- calendar: "이달의 피자" (from the custom tracker's history) ----------
+
+  const calTitle = document.getElementById("cal-title");
+  const calGrid = document.getElementById("calendar-grid");
+  const calPrevBtn = document.getElementById("cal-prev");
+  const calNextBtn = document.getElementById("cal-next");
 
   const now = new Date();
   let calYear = now.getFullYear();
   let calMonth = now.getMonth(); // 0-indexed
 
+  const MINI_SCALE = 0.22; // mini pizza is much smaller than the live 220px plate
+
   function renderCalendar() {
-    calTitle.textContent = `이달의 피자 · ${calYear}년 ${calMonth + 1}월`;
+    calTitle.innerHTML = `이달의 피자 <span class="cal-sub">· 커스텀 · ${calYear}년 ${calMonth + 1}월</span>`;
     calGrid.innerHTML = "";
 
+    const history = customTracker.getHistory();
     const historyByDate = new Map(history.map((h) => [h.date, h]));
     const firstWeekday = new Date(calYear, calMonth, 1).getDay();
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -509,13 +719,18 @@
 
         const mini = document.createElement("div");
         mini.className = "mini-pizza";
-        const toppings = entry.toppings && entry.toppings.length ? entry.toppings : ["🍕"];
-        toppings.slice(0, 5).forEach((emoji, i) => {
+        mini.style.backgroundImage = BLANK_PIZZA_URL;
+
+        (entry.layout || []).forEach((t) => {
           const span = document.createElement("span");
-          span.className = `mini-top t${i}`;
-          span.textContent = emoji;
+          span.className = "mini-top";
+          span.style.left = `${t.x}%`;
+          span.style.top = `${t.y}%`;
+          span.style.fontSize = `${Math.max(3, t.size * MINI_SCALE)}px`;
+          span.textContent = t.emoji;
           mini.appendChild(span);
         });
+
         cell.appendChild(mini);
       }
 
@@ -535,187 +750,5 @@
     renderCalendar();
   });
 
-  function renderAll() {
-    renderPizza();
-    renderHabitList();
-    renderStats();
-    renderCalendar();
-  }
-
-  // ---------- interactions ----------
-
-  function toggleHabit(id) {
-    if (state.boxed) return;
-    if (state.completed[id]) {
-      delete state.completed[id];
-    } else {
-      state.completed[id] = true;
-    }
-    persistState();
-    renderPizza();
-    renderHabitList();
-
-    if (habits.length === SLOTS && completedCount() === SLOTS) {
-      runCompleteSequence();
-    }
-  }
-
-  function removeHabit(id) {
-    if (state.boxed) return;
-    habits = habits.filter((h) => h.id !== id);
-    delete state.completed[id];
-    persistHabits();
-    persistState();
-    renderAll();
-  }
-
-  addForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (state.boxed) return;
-    const name = addInput.value.trim();
-    const topping = addEmojiInput.value.trim() || "🍕";
-    if (!name || habits.length >= SLOTS) return;
-    habits.push({ id: uid(), name, topping });
-    persistHabits();
-    addInput.value = "";
-    addEmojiInput.value = "";
-    renderAll();
-  });
-
-  resetBtn.addEventListener("click", () => {
-    if (!confirm("오늘의 습관 체크 기록을 초기화할까요?")) return;
-    state = { date: today, completed: {}, boxed: false };
-    persistState();
-    pizzaWrap.classList.remove("pulsing");
-    sparkleLayer.classList.remove("show");
-    completeMsg.classList.remove("show");
-    renderAll();
-    renderSpecialPizza();
-  });
-
-  // ---------- my-pizza topping scatter (shown once all habits are done) ----------
-
-  function shuffledIndexes(n) {
-    const a = Array.from({ length: n }, (_, i) => i);
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
-  // 7 concentric rings x N habits, each ring a shuffled full pass over every
-  // habit, so every topping appears exactly 7x and stays evenly spread out
-  // (even radially and angularly) while which habit lands where, and how big
-  // each instance is, is randomized.
-  const TOPPING_RINGS = [6, 11, 16, 21, 26, 31, 36];
-
-  function buildToppingLayout() {
-    const n = habits.length;
-    if (n === 0) return [];
-    const layout = [];
-    const slotWidth = 360 / n;
-    TOPPING_RINGS.forEach((ringRadius, ringIdx) => {
-      const order = shuffledIndexes(n);
-      // stagger each ring's angle grid so points don't stack into radial spokes
-      const ringOffset = (ringIdx / TOPPING_RINGS.length) * slotWidth;
-      order.forEach((habitIdx, slot) => {
-        const habit = habits[habitIdx];
-        const angle = (slot + 0.5) * slotWidth - 90 + ringOffset + (Math.random() * slotWidth * 0.5 - slotWidth * 0.25);
-        const radius = ringRadius + (Math.random() * 6 - 3);
-        const p = polar(angle, radius);
-        layout.push({
-          id: habit.id,
-          emoji: habit.topping || "🍕",
-          x: Math.round(p.x * 10) / 10,
-          y: Math.round(p.y * 10) / 10,
-          rot: Math.round(Math.random() * 36 - 18),
-          size: 9 + Math.round(Math.random() * 17),
-          delay: Math.round(Math.random() * 700) / 1000,
-        });
-      });
-    });
-    return layout;
-  }
-
-  function renderSpecialPizza() {
-    const done = state.boxed;
-    specialHint.classList.toggle("hide", done);
-    specialCompleteMsg.classList.toggle("show", done);
-    if (done) {
-      toppingLayer.innerHTML = "";
-      (state.toppingLayout || []).forEach((t) => {
-        const el = document.createElement("div");
-        el.className = "topping-emoji";
-        el.style.left = `${t.x}%`;
-        el.style.top = `${t.y}%`;
-        el.style.fontSize = `${t.size}px`;
-        el.style.animationDelay = `${t.delay}s`;
-        el.style.setProperty("--rot", `${t.rot}deg`);
-        el.textContent = t.emoji;
-        toppingLayer.appendChild(el);
-      });
-      toppingLayer.classList.add("show");
-    } else {
-      toppingLayer.classList.remove("show");
-      toppingLayer.innerHTML = "";
-    }
-  }
-
-  // ---------- completion sequence ----------
-
-  let sequenceRunning = false;
-
-  function runCompleteSequence(skipAnimation = false) {
-    if (sequenceRunning) return;
-    sequenceRunning = true;
-
-    if (skipAnimation) {
-      sparkleLayer.classList.add("show");
-      completeMsg.classList.add("show");
-      renderSpecialPizza();
-      sequenceRunning = false;
-      return;
-    }
-
-    pizzaWrap.classList.add("pulsing");
-
-    setTimeout(() => {
-      pizzaWrap.classList.remove("pulsing");
-      finalizeCompletion();
-      sparkleLayer.classList.add("show");
-      completeMsg.classList.add("show");
-      renderSpecialPizza();
-      sequenceRunning = false;
-    }, 1800);
-  }
-
-  function finalizeCompletion() {
-    state.boxed = true;
-    if (!state.toppingLayout) {
-      state.toppingLayout = buildToppingLayout();
-    }
-    persistState();
-
-    const already = history.some((h) => h.date === state.date);
-    if (!already) {
-      history.push({
-        date: state.date,
-        names: habits.map((h) => h.name),
-        toppings: habits.map((h) => h.topping || "🍕"),
-      });
-      persistHistory();
-    }
-    renderHabitList();
-    renderStats();
-    renderCalendar();
-  }
-
-  // ---------- init ----------
-
-  renderAll();
-
-  if (state.boxed) {
-    runCompleteSequence(true);
-  }
+  renderCalendar();
 })();
