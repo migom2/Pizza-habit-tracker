@@ -491,11 +491,14 @@
     const n = habits.length;
     if (n === 0) return [];
     const layout = [];
-    TOPPING_RINGS.forEach((ringRadius) => {
+    const slotWidth = 360 / n;
+    TOPPING_RINGS.forEach((ringRadius, ringIdx) => {
       const order = shuffledIndexes(n);
+      // stagger each ring's angle grid so points don't stack into radial spokes
+      const ringOffset = (ringIdx / TOPPING_RINGS.length) * slotWidth;
       order.forEach((habitIdx, slot) => {
         const habit = habits[habitIdx];
-        const angle = (slot + 0.5) * (360 / n) - 90 + (Math.random() * 10 - 5);
+        const angle = (slot + 0.5) * slotWidth - 90 + ringOffset + (Math.random() * slotWidth * 0.5 - slotWidth * 0.25);
         const radius = ringRadius + (Math.random() * 6 - 3);
         const p = polar(angle, radius);
         layout.push({
