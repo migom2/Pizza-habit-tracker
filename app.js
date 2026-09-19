@@ -481,10 +481,10 @@
     return a;
   }
 
-  // 3 concentric rings x N habits, each ring a shuffled full pass over every
-  // habit, so every topping appears exactly 3x and stays evenly spread out
+  // 5 concentric rings x N habits, each ring a shuffled full pass over every
+  // habit, so every topping appears exactly 5x and stays evenly spread out
   // (even radially and angularly) while which habit lands where is randomized.
-  const TOPPING_RINGS = [14, 25, 36];
+  const TOPPING_RINGS = [8, 15, 22, 29, 36];
 
   function buildToppingLayout() {
     const n = habits.length;
@@ -503,7 +503,7 @@
           x: Math.round(p.x * 10) / 10,
           y: Math.round(p.y * 10) / 10,
           rot: Math.round(Math.random() * 36 - 18),
-          size: 14 + Math.round(Math.random() * 6),
+          size: 12 + Math.round(Math.random() * 5),
           delay: Math.round(Math.random() * 700) / 1000,
         });
       });
