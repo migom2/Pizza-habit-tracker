@@ -165,30 +165,26 @@ body {
   opacity: 0.6;
 }
 
-.pizza-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 4px 12px rgba(120, 74, 24, 0.2);
-  display: flex;
+.pizza-counter {
+  margin-top: 16px;
+  padding: 10px 34px;
+  min-width: 140px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 6px 14px rgba(120, 74, 24, 0.18);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: "IBM Plex Mono", monospace;
-  font-weight: 600;
-  font-size: 20px;
+  font-weight: 700;
+  font-size: 22px;
   color: var(--accent-dark);
-  z-index: 5;
 }
 
-.pizza-center .slash {
+.pizza-counter .slash {
   color: var(--muted);
-  margin: 0 1px;
-  font-size: 15px;
+  margin: 0 3px;
+  font-size: 17px;
 }
 
 .pizza-wrap.pulsing .pizza-plate {
