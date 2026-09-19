@@ -22,7 +22,6 @@
             <div class="pizza-wrap" id="pizza-wrap">
               <div class="pizza-plate">
                 <div class="pizza" id="pizza"></div>
-                <div class="topping-layer" id="topping-layer"></div>
               </div>
             </div>
 
@@ -64,11 +63,28 @@
         </section>
       </main>
 
-      <section class="history">
-        <h3>완성한 피자들</h3>
-        <div class="history-row" id="history-row">
-          <p class="history-empty" id="history-empty">아직 완성한 피자가 없어요. 오늘 습관을 모두 채워보세요!</p>
+      <section class="special-pizza">
+        <h2>🎨 나만의 특별 피자 만들기</h2>
+        <p class="special-hint" id="special-hint">습관마다 고른 토핑 이모지로, 오늘 습관을 모두 완료하면 나만의 피자가 완성돼요.</p>
+        <div class="special-stage">
+          <div class="special-plate">
+            <div class="special-base" id="special-base"></div>
+            <div class="topping-layer" id="topping-layer"></div>
+          </div>
         </div>
+        <p class="complete-msg" id="special-complete-msg">나만의 피자 완성! 🎉</p>
+      </section>
+
+      <section class="calendar">
+        <div class="calendar-header">
+          <button type="button" id="cal-prev" aria-label="이전 달">‹</button>
+          <h3 id="cal-title">이달의 피자</h3>
+          <button type="button" id="cal-next" aria-label="다음 달">›</button>
+        </div>
+        <div class="calendar-weekdays">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
       </section>
     </div>
 

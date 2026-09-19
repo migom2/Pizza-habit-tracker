@@ -11,7 +11,6 @@
   const pizzaEl = $("#pizza");
   const pizzaWrap = $("#pizza-wrap");
   const sparkleLayer = $("#sparkle-layer");
-  const toppingLayer = $("#topping-layer");
   const completeMsg = $("#complete-msg");
   const countDoneEl = $("#count-done");
   const countTotalEl = $("#count-total");
@@ -24,8 +23,14 @@
   const statStreak = $("#stat-streak");
   const statTotal = $("#stat-total");
   const resetBtn = $("#reset-btn");
-  const historyRow = $("#history-row");
-  const historyEmpty = $("#history-empty");
+  const specialBase = $("#special-base");
+  const specialHint = $("#special-hint");
+  const specialCompleteMsg = $("#special-complete-msg");
+  const toppingLayer = $("#topping-layer");
+  const calTitle = $("#cal-title");
+  const calGrid = $("#calendar-grid");
+  const calPrevBtn = $("#cal-prev");
+  const calNextBtn = $("#cal-next");
 
   // ---------- utils ----------
 
@@ -40,11 +45,6 @@
     const d = new Date(dateStr + "T00:00:00");
     d.setDate(d.getDate() - 1);
     return todayStr(d);
-  }
-
-  function formatShortDate(dateStr) {
-    const [, m, d] = dateStr.split("-");
-    return `${m}.${d}`;
   }
 
   function uid() {
@@ -139,7 +139,72 @@
   // flat clip-art palette: bold dark outlines, clean cel-shaded fills
   const OUTLINE = "#3d2415";
 
-  function buildPizzaArtwork() {
+  function svgPepperoni(cx, cy, r) {
+    const dots = [
+      [cx - r * 0.35, cy - r * 0.2, r * 0.15],
+      [cx + r * 0.3, cy - r * 0.1, r * 0.13],
+      [cx - r * 0.05, cy + r * 0.4, r * 0.14],
+      [cx + r * 0.32, cy + r * 0.28, r * 0.11],
+    ];
+    const dotTags = dots
+      .map(([dx, dy, dr]) => `<circle cx="${dx.toFixed(1)}" cy="${dy.toFixed(1)}" r="${dr.toFixed(1)}" fill="#e8a06e" opacity="0.9"/>`)
+      .join("");
+    return `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#c1432b" stroke="${OUTLINE}" stroke-width="2"/>
+      ${dotTags}
+      <ellipse cx="${(cx - r * 0.3).toFixed(1)}" cy="${(cy - r * 0.32).toFixed(1)}" rx="${(r * 0.26).toFixed(1)}" ry="${(r * 0.16).toFixed(1)}" fill="#fff" opacity="0.18"/>
+    `;
+  }
+
+  function svgOlive(cx, cy, r) {
+    return `
+      <ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r * 0.88}" fill="#2b2320" stroke="${OUTLINE}" stroke-width="1.6"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${(r * 0.42).toFixed(1)}" ry="${(r * 0.36).toFixed(1)}" fill="#f7c94c"/>
+    `;
+  }
+
+  function svgBasil(cx, cy, rot) {
+    return `
+      <g transform="translate(${cx} ${cy}) rotate(${rot})">
+        <path d="M -13 3 Q -6 -9 0 0 Q 6 -9 13 3 Q 5 8 0 5 Q -5 8 -13 3 Z" fill="#5fa84c" stroke="${OUTLINE}" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M -9 3 Q 0 1 9 3" fill="none" stroke="${OUTLINE}" stroke-width="1" opacity="0.7"/>
+      </g>
+    `;
+  }
+
+  function svgMushroom(cx, cy, r, rot) {
+    return `
+      <g transform="translate(${cx} ${cy}) rotate(${rot})">
+        <path d="M ${-r} 2 Q ${-r} ${-r * 0.95} 0 ${-r * 0.95} Q ${r} ${-r * 0.95} ${r} 2 Q 0 ${r * 0.5} ${-r} 2 Z" fill="#f3e6cc" stroke="${OUTLINE}" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M ${-r * 0.62} 1.5 Q 0 ${-r * 0.35} ${r * 0.62} 1.5" fill="none" stroke="#c9a86a" stroke-width="1.4" opacity="0.8"/>
+        <rect x="${(-r * 0.28).toFixed(1)}" y="1" width="${(r * 0.56).toFixed(1)}" height="${(r * 0.55).toFixed(1)}" rx="2" fill="#f3e6cc" stroke="${OUTLINE}" stroke-width="1.6"/>
+      </g>
+    `;
+  }
+
+  function svgFleck(cx, cy, rot) {
+    return `<rect x="${(cx - 3).toFixed(1)}" y="${(cy - 3).toFixed(1)}" width="6" height="6" rx="1.4" fill="#c1432b" stroke="${OUTLINE}" stroke-width="0.8" transform="rotate(${rot} ${cx.toFixed(1)} ${cy.toFixed(1)})"/>`;
+  }
+
+  const TOPPING_PATTERNS = [
+    [ // pattern A - mixed (mushroom, olive, basil, pepperoni)
+      { kind: "pepperoni", off: -14, radius: 44, r: 13 },
+      { kind: "mushroom", off: 12, radius: 68, r: 11, rot: 8 },
+      { kind: "olive", off: 0, radius: 88, r: 7.5 },
+      { kind: "basil", off: -8, radius: 30, rot: -15 },
+      { kind: "fleck", off: 15, radius: 30, rot: 20 },
+      { kind: "fleck", off: -16, radius: 62, rot: -30 },
+    ],
+    [ // pattern B - pepperoni-forward
+      { kind: "pepperoni", off: 0, radius: 46, r: 13 },
+      { kind: "pepperoni", off: -15, radius: 80, r: 11 },
+      { kind: "pepperoni", off: 14, radius: 76, r: 10 },
+      { kind: "olive", off: 13, radius: 34, r: 7 },
+      { kind: "fleck", off: -4, radius: 62, rot: 10 },
+    ],
+  ];
+
+  function buildPizzaArtwork(withToppings) {
     const crustR = 124;
     const sauceR = 108;
     const cheeseR = 100;
@@ -150,14 +215,30 @@
       <ellipse cx="168" cy="178" rx="70" ry="46" fill="#c1432b" opacity="0.08"/>
     `;
 
-    // melty cheese blotches (flat, no outline) - the only surface texture; no fixed toppings,
-    // since finished slices show only the habit's own emoji topping
+    // melty cheese blotches (flat, no outline)
     let blotches = "";
     for (let k = 0; k < 9; k++) {
       const a = k * 40 + (k % 2) * 12;
       const radius = 26 + (k % 3) * 20;
       const p = px(a, radius);
       blotches += `<ellipse cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" rx="11" ry="7" fill="#f9d76b" opacity="0.7" transform="rotate(${a} ${p.x.toFixed(1)} ${p.y.toFixed(1)})"/>`;
+    }
+
+    // toppings, alternating pattern per slice so it reads as a varied pizza
+    let toppings = "";
+    if (withToppings) {
+      for (let i = 0; i < SLOTS; i++) {
+        const ca = (i + 0.5) * 45 - 90;
+        const pattern = TOPPING_PATTERNS[i % 2];
+        pattern.forEach((t) => {
+          const p = px(ca + t.off, t.radius);
+          if (t.kind === "pepperoni") toppings += svgPepperoni(p.x, p.y, t.r);
+          else if (t.kind === "olive") toppings += svgOlive(p.x, p.y, t.r);
+          else if (t.kind === "basil") toppings += svgBasil(p.x, p.y, t.rot);
+          else if (t.kind === "mushroom") toppings += svgMushroom(p.x, p.y, t.r, t.rot);
+          else if (t.kind === "fleck") toppings += svgFleck(p.x, p.y, t.rot);
+        });
+      }
     }
 
     // slice cut-lines
@@ -174,6 +255,7 @@
         <circle cx="${PIZZA_CX}" cy="${PIZZA_CY}" r="${sauceR}" fill="#d1652f" stroke="${OUTLINE}" stroke-width="2"/>
         <circle cx="${PIZZA_CX}" cy="${PIZZA_CY}" r="${cheeseR}" fill="#f7c94c" stroke="${OUTLINE}" stroke-width="2"/>
         ${blotches}
+        ${toppings}
         ${cuts}
         ${shading}
       </svg>
@@ -182,9 +264,13 @@
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   }
 
-  const PIZZA_ART_URL = buildPizzaArtwork();
+  // main tracker pizza keeps its classic pre-drawn toppings
+  const PIZZA_ART_URL = buildPizzaArtwork(true);
+  // the "make your own pizza" corner starts bare so only chosen emoji toppings show
+  const BLANK_PIZZA_ART_URL = buildPizzaArtwork(false);
 
   buildSlices();
+  specialBase.style.backgroundImage = BLANK_PIZZA_ART_URL;
 
   // ---------- celebration sparkles (placed around the pizza, twinkling) ----------
 
@@ -385,37 +471,75 @@
     return count;
   }
 
-  const CHIP_COLORS = ["#fdece3", "#fdf3d6", "#e4f3fb", "#f1e9fb", "#e2f6ec"];
+  // ---------- calendar: "이달의 피자" ----------
 
-  function renderHistory() {
-    const entries = history.slice(-14).reverse();
-    historyEmpty.style.display = entries.length ? "none" : "block";
-    historyRow.querySelectorAll(".history-chip").forEach((n) => n.remove());
-    entries.forEach((entry, i) => {
-      const chip = document.createElement("div");
-      chip.className = "history-chip";
-      chip.style.setProperty("--chip-bg", CHIP_COLORS[i % CHIP_COLORS.length]);
-      chip.title = entry.names ? entry.names.join(", ") : entry.date;
+  const now = new Date();
+  let calYear = now.getFullYear();
+  let calMonth = now.getMonth(); // 0-indexed
 
-      const icon = document.createElement("div");
-      icon.className = "chip-icon";
-      const color = SPARKLE_PALETTE[i % SPARKLE_PALETTE.length];
-      icon.innerHTML = `<svg viewBox="0 0 24 24">${shapeStar5(color, true)}</svg>`;
+  function renderCalendar() {
+    calTitle.textContent = `이달의 피자 · ${calYear}년 ${calMonth + 1}월`;
+    calGrid.innerHTML = "";
 
-      const dateEl = document.createElement("div");
-      dateEl.className = "chip-date";
-      dateEl.textContent = formatShortDate(entry.date);
+    const historyByDate = new Map(history.map((h) => [h.date, h]));
+    const firstWeekday = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
 
-      chip.append(icon, dateEl);
-      historyRow.appendChild(chip);
-    });
+    for (let i = 0; i < firstWeekday; i++) {
+      const pad = document.createElement("div");
+      pad.className = "cal-day empty";
+      calGrid.appendChild(pad);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const cell = document.createElement("div");
+      cell.className = "cal-day";
+      if (dateStr === today) cell.classList.add("today");
+
+      const num = document.createElement("div");
+      num.className = "day-num";
+      num.textContent = String(d);
+      cell.appendChild(num);
+
+      const entry = historyByDate.get(dateStr);
+      if (entry) {
+        cell.classList.add("has-pizza");
+        cell.title = entry.names ? entry.names.join(", ") : dateStr;
+
+        const mini = document.createElement("div");
+        mini.className = "mini-pizza";
+        const toppings = entry.toppings && entry.toppings.length ? entry.toppings : ["🍕"];
+        toppings.slice(0, 5).forEach((emoji, i) => {
+          const span = document.createElement("span");
+          span.className = `mini-top t${i}`;
+          span.textContent = emoji;
+          mini.appendChild(span);
+        });
+        cell.appendChild(mini);
+      }
+
+      calGrid.appendChild(cell);
+    }
   }
+
+  calPrevBtn.addEventListener("click", () => {
+    calMonth--;
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    renderCalendar();
+  });
+
+  calNextBtn.addEventListener("click", () => {
+    calMonth++;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    renderCalendar();
+  });
 
   function renderAll() {
     renderPizza();
     renderHabitList();
     renderStats();
-    renderHistory();
+    renderCalendar();
   }
 
   // ---------- interactions ----------
@@ -464,10 +588,9 @@
     persistState();
     pizzaWrap.classList.remove("pulsing");
     sparkleLayer.classList.remove("show");
-    toppingLayer.classList.remove("show");
-    toppingLayer.innerHTML = "";
     completeMsg.classList.remove("show");
     renderAll();
+    renderSpecialPizza();
   });
 
   // ---------- my-pizza topping scatter (shown once all habits are done) ----------
@@ -515,19 +638,28 @@
     return layout;
   }
 
-  function renderToppingLayer() {
-    toppingLayer.innerHTML = "";
-    (state.toppingLayout || []).forEach((t) => {
-      const el = document.createElement("div");
-      el.className = "topping-emoji";
-      el.style.left = `${t.x}%`;
-      el.style.top = `${t.y}%`;
-      el.style.fontSize = `${t.size}px`;
-      el.style.animationDelay = `${t.delay}s`;
-      el.style.setProperty("--rot", `${t.rot}deg`);
-      el.textContent = t.emoji;
-      toppingLayer.appendChild(el);
-    });
+  function renderSpecialPizza() {
+    const done = state.boxed;
+    specialHint.classList.toggle("hide", done);
+    specialCompleteMsg.classList.toggle("show", done);
+    if (done) {
+      toppingLayer.innerHTML = "";
+      (state.toppingLayout || []).forEach((t) => {
+        const el = document.createElement("div");
+        el.className = "topping-emoji";
+        el.style.left = `${t.x}%`;
+        el.style.top = `${t.y}%`;
+        el.style.fontSize = `${t.size}px`;
+        el.style.animationDelay = `${t.delay}s`;
+        el.style.setProperty("--rot", `${t.rot}deg`);
+        el.textContent = t.emoji;
+        toppingLayer.appendChild(el);
+      });
+      toppingLayer.classList.add("show");
+    } else {
+      toppingLayer.classList.remove("show");
+      toppingLayer.innerHTML = "";
+    }
   }
 
   // ---------- completion sequence ----------
@@ -539,10 +671,9 @@
     sequenceRunning = true;
 
     if (skipAnimation) {
-      renderToppingLayer();
-      toppingLayer.classList.add("show");
       sparkleLayer.classList.add("show");
       completeMsg.classList.add("show");
+      renderSpecialPizza();
       sequenceRunning = false;
       return;
     }
@@ -552,10 +683,9 @@
     setTimeout(() => {
       pizzaWrap.classList.remove("pulsing");
       finalizeCompletion();
-      renderToppingLayer();
-      toppingLayer.classList.add("show");
       sparkleLayer.classList.add("show");
       completeMsg.classList.add("show");
+      renderSpecialPizza();
       sequenceRunning = false;
     }, 1800);
   }
@@ -569,12 +699,16 @@
 
     const already = history.some((h) => h.date === state.date);
     if (!already) {
-      history.push({ date: state.date, names: habits.map((h) => h.name) });
+      history.push({
+        date: state.date,
+        names: habits.map((h) => h.name),
+        toppings: habits.map((h) => h.topping || "🍕"),
+      });
       persistHistory();
     }
     renderHabitList();
     renderStats();
-    renderHistory();
+    renderCalendar();
   }
 
   // ---------- init ----------
