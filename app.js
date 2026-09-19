@@ -138,72 +138,6 @@
 
   // flat clip-art palette: bold dark outlines, clean cel-shaded fills
   const OUTLINE = "#3d2415";
-  const OUTLINE_DARK = "#2a1810";
-
-  function svgPepperoni(cx, cy, r) {
-    const dots = [
-      [cx - r * 0.35, cy - r * 0.2, r * 0.15],
-      [cx + r * 0.3, cy - r * 0.1, r * 0.13],
-      [cx - r * 0.05, cy + r * 0.4, r * 0.14],
-      [cx + r * 0.32, cy + r * 0.28, r * 0.11],
-    ];
-    const dotTags = dots
-      .map(([dx, dy, dr]) => `<circle cx="${dx.toFixed(1)}" cy="${dy.toFixed(1)}" r="${dr.toFixed(1)}" fill="#e8a06e" opacity="0.9"/>`)
-      .join("");
-    return `
-      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#c1432b" stroke="${OUTLINE}" stroke-width="2"/>
-      ${dotTags}
-      <ellipse cx="${(cx - r * 0.3).toFixed(1)}" cy="${(cy - r * 0.32).toFixed(1)}" rx="${(r * 0.26).toFixed(1)}" ry="${(r * 0.16).toFixed(1)}" fill="#fff" opacity="0.18"/>
-    `;
-  }
-
-  function svgOlive(cx, cy, r) {
-    return `
-      <ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r * 0.88}" fill="#2b2320" stroke="${OUTLINE}" stroke-width="1.6"/>
-      <ellipse cx="${cx}" cy="${cy}" rx="${(r * 0.42).toFixed(1)}" ry="${(r * 0.36).toFixed(1)}" fill="#f7c94c"/>
-    `;
-  }
-
-  function svgBasil(cx, cy, rot) {
-    return `
-      <g transform="translate(${cx} ${cy}) rotate(${rot})">
-        <path d="M -13 3 Q -6 -9 0 0 Q 6 -9 13 3 Q 5 8 0 5 Q -5 8 -13 3 Z" fill="#5fa84c" stroke="${OUTLINE}" stroke-width="1.6" stroke-linejoin="round"/>
-        <path d="M -9 3 Q 0 1 9 3" fill="none" stroke="${OUTLINE_DARK}" stroke-width="1" opacity="0.7"/>
-      </g>
-    `;
-  }
-
-  function svgMushroom(cx, cy, r, rot) {
-    return `
-      <g transform="translate(${cx} ${cy}) rotate(${rot})">
-        <path d="M ${-r} 2 Q ${-r} ${-r * 0.95} 0 ${-r * 0.95} Q ${r} ${-r * 0.95} ${r} 2 Q 0 ${r * 0.5} ${-r} 2 Z" fill="#f3e6cc" stroke="${OUTLINE}" stroke-width="1.8" stroke-linejoin="round"/>
-        <path d="M ${-r * 0.62} 1.5 Q 0 ${-r * 0.35} ${r * 0.62} 1.5" fill="none" stroke="#c9a86a" stroke-width="1.4" opacity="0.8"/>
-        <rect x="${(-r * 0.28).toFixed(1)}" y="1" width="${(r * 0.56).toFixed(1)}" height="${(r * 0.55).toFixed(1)}" rx="2" fill="#f3e6cc" stroke="${OUTLINE}" stroke-width="1.6"/>
-      </g>
-    `;
-  }
-
-  function svgFleck(cx, cy, rot) {
-    return `<rect x="${(cx - 3).toFixed(1)}" y="${(cy - 3).toFixed(1)}" width="6" height="6" rx="1.4" fill="#c1432b" stroke="${OUTLINE}" stroke-width="0.8" transform="rotate(${rot} ${cx.toFixed(1)} ${cy.toFixed(1)})"/>`;
-  }
-
-  const TOPPING_PATTERNS = [
-    [ // pattern A - mixed (mushroom, olive, basil, pepperoni)
-      { kind: "pepperoni", off: -14, radius: 44, r: 13 },
-      { kind: "mushroom", off: 12, radius: 68, r: 11, rot: 8 },
-      { kind: "olive", off: 0, radius: 88, r: 7.5 },
-      { kind: "basil", off: -8, radius: 30, rot: -15 },
-      { kind: "fleck", off: 15, radius: 30, rot: 20 },
-      { kind: "fleck", off: -16, radius: 62, rot: -30 },
-    ],
-    [ // pattern B - pepperoni-forward
-      { kind: "pepperoni", off: 0, radius: 46, r: 13 },
-      { kind: "pepperoni", off: -15, radius: 80, r: 11 },
-      { kind: "pepperoni", off: 14, radius: 76, r: 10 },
-      { kind: "olive", off: 13, radius: 34, r: 7 },
-      { kind: "fleck", off: -4, radius: 62, rot: 10 },
-    ],
-  ];
 
   function buildPizzaArtwork() {
     const crustR = 124;
@@ -216,28 +150,14 @@
       <ellipse cx="168" cy="178" rx="70" ry="46" fill="#c1432b" opacity="0.08"/>
     `;
 
-    // melty cheese blotches (flat, no outline)
+    // melty cheese blotches (flat, no outline) - the only surface texture; no fixed toppings,
+    // since finished slices show only the habit's own emoji topping
     let blotches = "";
     for (let k = 0; k < 9; k++) {
       const a = k * 40 + (k % 2) * 12;
       const radius = 26 + (k % 3) * 20;
       const p = px(a, radius);
       blotches += `<ellipse cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" rx="11" ry="7" fill="#f9d76b" opacity="0.7" transform="rotate(${a} ${p.x.toFixed(1)} ${p.y.toFixed(1)})"/>`;
-    }
-
-    // toppings, alternating pattern per slice so it reads as a varied pizza
-    let toppings = "";
-    for (let i = 0; i < SLOTS; i++) {
-      const ca = (i + 0.5) * 45 - 90;
-      const pattern = TOPPING_PATTERNS[i % 2];
-      pattern.forEach((t) => {
-        const p = px(ca + t.off, t.radius);
-        if (t.kind === "pepperoni") toppings += svgPepperoni(p.x, p.y, t.r);
-        else if (t.kind === "olive") toppings += svgOlive(p.x, p.y, t.r);
-        else if (t.kind === "basil") toppings += svgBasil(p.x, p.y, t.rot);
-        else if (t.kind === "mushroom") toppings += svgMushroom(p.x, p.y, t.r, t.rot);
-        else if (t.kind === "fleck") toppings += svgFleck(p.x, p.y, t.rot);
-      });
     }
 
     // slice cut-lines
@@ -254,7 +174,6 @@
         <circle cx="${PIZZA_CX}" cy="${PIZZA_CY}" r="${sauceR}" fill="#d1652f" stroke="${OUTLINE}" stroke-width="2"/>
         <circle cx="${PIZZA_CX}" cy="${PIZZA_CY}" r="${cheeseR}" fill="#f7c94c" stroke="${OUTLINE}" stroke-width="2"/>
         ${blotches}
-        ${toppings}
         ${cuts}
         ${shading}
       </svg>
