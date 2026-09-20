@@ -441,6 +441,8 @@
     const statStreak = $("statStreak");
     const statTotal = $("statTotal");
     const resetBtn = $("resetBtn");
+    const finishBtn = $("finishBtn");
+    const fullCompleteText = completeMsg.textContent;
 
     const pizzaEl = cfg.sliced ? $("pizza") : null;
     const pizzaBaseEl = cfg.sliced ? null : $("pizzaBase");
@@ -568,6 +570,7 @@
       if (addEmojiInput) addEmojiInput.disabled = !canAdd;
       addBtn.disabled = !canAdd;
       fullHint.classList.toggle("show", habits.length >= SLOTS && !locked);
+      finishBtn.disabled = locked || completedCount() === 0;
     }
 
     function computeStreak() {
@@ -689,6 +692,7 @@
 
       const reveal = () => {
         sparkleLayer.classList.add("show");
+        completeMsg.textContent = fullCompleteText;
         completeMsg.classList.add("show");
         if (encourageMsg) {
           encourageMsg.textContent = pickDailyMessage(state.date);
@@ -716,6 +720,7 @@
 
     function finalizeCompletion() {
       state.boxed = true;
+      state.full = true;
       if (!cfg.sliced && !state.toppingLayout) {
         state.toppingLayout = buildToppingLayout(habits);
       }
@@ -723,7 +728,7 @@
 
       const already = history.some((h) => h.date === state.date);
       if (!already) {
-        const entry = { date: state.date, names: habits.map((h) => h.name) };
+        const entry = { date: state.date, names: habits.map((h) => h.name), full: true };
         if (!cfg.sliced) entry.layout = state.toppingLayout;
         history.push(entry);
         persistHistory();
@@ -733,8 +738,53 @@
       if (cfg.onHistoryChange) cfg.onHistoryChange();
     }
 
+    function revealPartial() {
+      completeMsg.textContent = "오늘은 여기까지! 내일 또 채워봐요 🍕";
+      completeMsg.classList.add("show");
+      if (encourageMsg) {
+        encourageMsg.textContent = pickDailyMessage(state.date);
+        encourageMsg.classList.add("show");
+      }
+      if (!cfg.sliced) renderToppingReveal();
+    }
+
+    function finishEarly() {
+      if (state.boxed || completedCount() === 0) return;
+      if (!confirm("오늘은 여기까지 하고 마무리할까요? 완료하지 못한 습관은 내일 다시 도전해요.")) return;
+
+      const doneHabits = habits.filter((h) => isCompletedToday(h.id));
+
+      state.boxed = true;
+      state.full = false;
+      if (!cfg.sliced) {
+        state.toppingLayout = buildToppingLayout(doneHabits);
+      }
+      persistState();
+
+      const already = history.some((h) => h.date === state.date);
+      if (!already) {
+        const entry = { date: state.date, names: doneHabits.map((h) => h.name), full: false };
+        if (!cfg.sliced) entry.layout = state.toppingLayout;
+        history.push(entry);
+        persistHistory();
+      }
+
+      renderHabitList();
+      renderStats();
+      if (cfg.onHistoryChange) cfg.onHistoryChange();
+
+      revealPartial();
+      playCheckSound();
+      vibrate(25);
+    }
+
+    finishBtn.addEventListener("click", finishEarly);
+
     renderAll();
-    if (state.boxed) runCompleteSequence(true);
+    if (state.boxed) {
+      if (state.full === false) revealPartial();
+      else runCompleteSequence(true);
+    }
 
     return { getHistory: () => history };
   }
@@ -826,9 +876,18 @@
 
       if (defaultEntry || customEntry) {
         cell.classList.add("has-pizza");
+        const primaryEntry = customEntry || defaultEntry;
+        if (primaryEntry.full === false) cell.classList.add("partial");
+
         const titleParts = [];
-        if (defaultEntry) titleParts.push("기본: " + (defaultEntry.names ? defaultEntry.names.join(", ") : ""));
-        if (customEntry) titleParts.push("커스텀: " + (customEntry.names ? customEntry.names.join(", ") : ""));
+        if (defaultEntry) {
+          const label = defaultEntry.full === false ? "기본(일부)" : "기본";
+          titleParts.push(label + ": " + (defaultEntry.names ? defaultEntry.names.join(", ") : ""));
+        }
+        if (customEntry) {
+          const label = customEntry.full === false ? "커스텀(일부)" : "커스텀";
+          titleParts.push(label + ": " + (customEntry.names ? customEntry.names.join(", ") : ""));
+        }
         cell.title = titleParts.join(" / ");
 
         const mini = document.createElement("div");

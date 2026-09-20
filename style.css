@@ -534,8 +534,30 @@ body {
   margin-top: 2px;
 }
 
-.reset-btn {
+.finish-btn {
   margin-top: 16px;
+  width: 100%;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: #fdf0ea;
+  color: var(--accent-dark);
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.finish-btn:hover:not(:disabled) { background: #fbe1d4; }
+.finish-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #e6d3ae;
+  background: none;
+  color: var(--muted);
+}
+
+.reset-btn {
+  margin-top: 10px;
   width: 100%;
   padding: 10px;
   border-radius: 10px;
@@ -636,6 +658,25 @@ body {
 .cal-day.has-pizza {
   background: #fdece3;
   padding: 3px;
+}
+
+.cal-day.partial {
+  background: #fbf3e4;
+}
+
+.cal-day.partial .mini-pizza {
+  opacity: 0.62;
+  filter: saturate(0.75);
+  box-shadow: 0 0 0 2px #fff, 0 2px 4px rgba(120, 74, 24, 0.18);
+}
+
+.cal-day.partial::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  border: 1.5px dashed #d8b98a;
+  pointer-events: none;
 }
 
 .mini-pizza {
