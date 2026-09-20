@@ -748,6 +748,7 @@
     },
     hasEmoji: false,
     sliced: true,
+    onHistoryChange: () => renderCalendar(),
   });
 
   const customTracker = createTracker({
@@ -795,11 +796,11 @@
   const MINI_SCALE = 0.22; // mini pizza is much smaller than the live 220px plate
 
   function renderCalendar() {
-    calTitle.innerHTML = `이달의 피자 <span class="cal-sub">· 커스텀 · ${calYear}년 ${calMonth + 1}월</span>`;
+    calTitle.innerHTML = `이달의 피자 <span class="cal-sub">· ${calYear}년 ${calMonth + 1}월</span>`;
     calGrid.innerHTML = "";
 
-    const history = customTracker.getHistory();
-    const historyByDate = new Map(history.map((h) => [h.date, h]));
+    const defaultByDate = new Map(defaultTracker.getHistory().map((h) => [h.date, h]));
+    const customByDate = new Map(customTracker.getHistory().map((h) => [h.date, h]));
     const firstWeekday = new Date(calYear, calMonth, 1).getDay();
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
 
@@ -820,26 +821,41 @@
       num.textContent = String(d);
       cell.appendChild(num);
 
-      const entry = historyByDate.get(dateStr);
-      if (entry) {
+      const defaultEntry = defaultByDate.get(dateStr);
+      const customEntry = customByDate.get(dateStr);
+
+      if (defaultEntry || customEntry) {
         cell.classList.add("has-pizza");
-        cell.title = entry.names ? entry.names.join(", ") : dateStr;
+        const titleParts = [];
+        if (defaultEntry) titleParts.push("기본: " + (defaultEntry.names ? defaultEntry.names.join(", ") : ""));
+        if (customEntry) titleParts.push("커스텀: " + (customEntry.names ? customEntry.names.join(", ") : ""));
+        cell.title = titleParts.join(" / ");
 
         const mini = document.createElement("div");
         mini.className = "mini-pizza";
-        mini.style.backgroundImage = BLANK_PIZZA_URL;
+        mini.style.backgroundImage = customEntry ? BLANK_PIZZA_URL : TOPPED_PIZZA_URL;
 
-        (entry.layout || []).forEach((t) => {
-          const span = document.createElement("span");
-          span.className = "mini-top";
-          span.style.left = `${t.x}%`;
-          span.style.top = `${t.y}%`;
-          span.style.fontSize = `${Math.max(3, t.size * MINI_SCALE)}px`;
-          span.textContent = t.emoji;
-          mini.appendChild(span);
-        });
+        if (customEntry) {
+          (customEntry.layout || []).forEach((t) => {
+            const span = document.createElement("span");
+            span.className = "mini-top";
+            span.style.left = `${t.x}%`;
+            span.style.top = `${t.y}%`;
+            span.style.fontSize = `${Math.max(3, t.size * MINI_SCALE)}px`;
+            span.textContent = t.emoji;
+            mini.appendChild(span);
+          });
+        }
 
         cell.appendChild(mini);
+
+        if (defaultEntry && customEntry) {
+          const badge = document.createElement("span");
+          badge.className = "mini-badge";
+          badge.textContent = "🍕";
+          badge.title = "기본 트래커도 완료";
+          cell.appendChild(badge);
+        }
       }
 
       calGrid.appendChild(cell);
