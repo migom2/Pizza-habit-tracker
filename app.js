@@ -59,6 +59,57 @@
 
   const today = todayStr();
 
+  // ---------- sound effects + vibration (shared) ----------
+
+  let audioCtx = null;
+
+  function getAudioCtx() {
+    if (audioCtx) return audioCtx;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch {
+      audioCtx = null;
+    }
+    return audioCtx;
+  }
+
+  function playTone(freq, duration, delay, type, volume) {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const t0 = ctx.currentTime + delay;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(volume, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.03);
+  }
+
+  function playCheckSound() {
+    playTone(880, 0.1, 0, "sine", 0.18);
+    playTone(1320, 0.09, 0.04, "sine", 0.1);
+  }
+
+  function playCompleteSound() {
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+      playTone(freq, 0.24, i * 0.09, "triangle", 0.22);
+    });
+  }
+
+  function vibrate(pattern) {
+    try {
+      if (navigator.vibrate) navigator.vibrate(pattern);
+    } catch {
+      /* not supported */
+    }
+  }
+
   // ---------- pizza artwork (shared, generated once) ----------
 
   const PIZZA_CX = 130;
@@ -531,8 +582,13 @@
 
     function toggleHabit(id) {
       if (state.boxed) return;
-      if (state.completed[id]) delete state.completed[id];
-      else state.completed[id] = true;
+      if (state.completed[id]) {
+        delete state.completed[id];
+      } else {
+        state.completed[id] = true;
+        playCheckSound();
+        vibrate(15);
+      }
       persistState();
       renderPizza();
       renderHabitList();
@@ -602,6 +658,8 @@
         pizzaWrap.classList.remove("pulsing");
         finalizeCompletion();
         reveal();
+        playCompleteSound();
+        vibrate([40, 60, 40, 60, 140]);
         sequenceRunning = false;
       }, 1800);
     }
