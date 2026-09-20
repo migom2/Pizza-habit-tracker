@@ -321,6 +321,22 @@ body {
   transform: translateY(0);
 }
 
+.encourage-msg {
+  margin-top: 6px;
+  max-width: 320px;
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s;
+}
+
+.encourage-msg.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* ---------- Habit panel ---------- */
 
 .habit-panel {

@@ -110,6 +110,39 @@
     }
   }
 
+  // ---------- daily encouragement message ----------
+
+  const ENCOURAGE_MESSAGES = [
+    "오늘도 스스로와의 약속을 지켰어요. 정말 멋져요!",
+    "작은 습관들이 모여 큰 변화를 만들어요. 오늘 하루도 수고했어요!",
+    "포기하지 않고 끝까지 해낸 당신, 최고예요!",
+    "오늘 하루, 어제보다 한 뼘 더 성장했어요.",
+    "꾸준함이 가장 큰 재능이에요. 오늘도 증명했네요!",
+    "당신의 노력은 반드시 쌓이고 있어요. 수고했어요!",
+    "오늘의 완주, 스스로를 꼭 안아주세요.",
+    "이 정도면 오늘 하루도 참 잘 살았어요!",
+    "작은 성취가 모여 자신감이 돼요. 오늘도 해냈어요!",
+    "매일의 반복이 결국 실력이 돼요. 대단해요!",
+    "오늘도 나 자신에게 좋은 선물을 줬어요.",
+    "습관은 배신하지 않아요. 오늘도 잘 쌓았어요!",
+    "힘든 날에도 해냈다면, 그게 진짜 성장이에요.",
+    "오늘의 당신, 어제의 당신보다 훨씬 단단해졌어요.",
+    "완벽하지 않아도 괜찮아요, 계속하는 게 중요해요. 잘했어요!",
+    "이 페이스 그대로면 뭐든 해낼 수 있어요!",
+    "오늘 하루도 스스로를 챙긴 당신, 참 잘했어요.",
+    "습관이 쌓이는 소리가 들리는 것 같아요. 수고했어요!",
+    "오늘의 노력이 내일의 나를 만들어요.",
+    "포기하고 싶었던 순간에도 해냈어요. 진짜 멋져요!",
+  ];
+
+  function pickDailyMessage(dateStr) {
+    let hash = 0;
+    for (let i = 0; i < dateStr.length; i++) {
+      hash = (hash * 31 + dateStr.charCodeAt(i)) >>> 0;
+    }
+    return ENCOURAGE_MESSAGES[hash % ENCOURAGE_MESSAGES.length];
+  }
+
   // ---------- pizza artwork (shared, generated once) ----------
 
   const PIZZA_CX = 130;
@@ -396,6 +429,7 @@
     const pizzaWrap = $("pizzaWrap");
     const sparkleLayer = $("sparkleLayer");
     const completeMsg = $("completeMsg");
+    const encourageMsg = $("encourageMsg");
     const countDoneEl = $("countDone");
     const countTotalEl = $("countTotal");
     const habitListEl = $("habitList");
@@ -625,14 +659,26 @@
       if (!confirm("오늘의 습관 체크 기록을 초기화할까요?")) return;
       state = { date: today, completed: {}, boxed: false };
       persistState();
+
+      const hadTodayEntry = history.some((h) => h.date === today);
+      if (hadTodayEntry) {
+        history = history.filter((h) => h.date !== today);
+        persistHistory();
+      }
+
       pizzaWrap.classList.remove("pulsing");
       sparkleLayer.classList.remove("show");
       completeMsg.classList.remove("show");
+      if (encourageMsg) {
+        encourageMsg.classList.remove("show");
+        encourageMsg.textContent = "";
+      }
       if (!cfg.sliced) {
         toppingLayer.classList.remove("show");
         toppingLayer.innerHTML = "";
       }
       renderAll();
+      if (hadTodayEntry && cfg.onHistoryChange) cfg.onHistoryChange();
     });
 
     let sequenceRunning = false;
@@ -644,6 +690,10 @@
       const reveal = () => {
         sparkleLayer.classList.add("show");
         completeMsg.classList.add("show");
+        if (encourageMsg) {
+          encourageMsg.textContent = pickDailyMessage(state.date);
+          encourageMsg.classList.add("show");
+        }
         if (!cfg.sliced) renderToppingReveal();
       };
 
