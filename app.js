@@ -549,9 +549,16 @@
         const nodes = [check];
 
         if (cfg.hasEmoji) {
-          const topping = document.createElement("span");
+          const topping = document.createElement("button");
+          topping.type = "button";
           topping.className = "habit-topping";
           topping.textContent = habit.topping || "🍕";
+          topping.title = "토핑 이모지 변경";
+          topping.disabled = locked;
+          topping.addEventListener("click", (e) => {
+            e.stopPropagation();
+            editTopping(habit.id);
+          });
           nodes.push(topping);
         }
 
@@ -655,6 +662,17 @@
       delete state.completed[id];
       persistHabits();
       persistState();
+      renderAll();
+    }
+
+    function editTopping(id) {
+      if (state.boxed) return;
+      const habit = habits.find((h) => h.id === id);
+      if (!habit) return;
+      const next = prompt("새 토핑 이모지를 입력하세요 (비워두면 🍕로 설정돼요)", habit.topping || "🍕");
+      if (next === null) return;
+      habit.topping = next.trim() || "🍕";
+      persistHabits();
       renderAll();
     }
 
