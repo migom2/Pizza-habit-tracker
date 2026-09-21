@@ -452,14 +452,28 @@
     let state = loadJSON(cfg.keys.state, null);
     let history = loadJSON(cfg.keys.history, []);
 
+    function persistHabits() { saveJSON(cfg.keys.habits, habits); }
+    function persistState() { saveJSON(cfg.keys.state, state); }
+    function persistHistory() { saveJSON(cfg.keys.history, history); }
+
+    // if the day changed while a previous day was left unfinished (checked
+    // some habits but never hit 8/8 or "오늘은 여기까지"), auto-close it out
+    // as a partial day instead of silently losing that progress
+    if (state && state.date !== today && !state.boxed) {
+      const leftoverHabits = habits.filter((h) => state.completed && state.completed[h.id]);
+      const alreadyRecorded = history.some((h) => h.date === state.date);
+      if (leftoverHabits.length > 0 && !alreadyRecorded) {
+        const entry = { date: state.date, names: leftoverHabits.map((h) => h.name), full: false };
+        if (!cfg.sliced) entry.layout = buildToppingLayout(leftoverHabits);
+        history.push(entry);
+        persistHistory();
+      }
+    }
+
     if (!state || state.date !== today) {
       state = { date: today, completed: {}, boxed: false };
       saveJSON(cfg.keys.state, state);
     }
-
-    function persistHabits() { saveJSON(cfg.keys.habits, habits); }
-    function persistState() { saveJSON(cfg.keys.state, state); }
-    function persistHistory() { saveJSON(cfg.keys.history, history); }
 
     function buildSlices() {
       pizzaEl.innerHTML = "";
