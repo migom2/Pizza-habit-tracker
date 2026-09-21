@@ -708,3 +708,61 @@ body {
   box-shadow: 0 1px 3px rgba(120, 74, 24, 0.3);
   z-index: 1;
 }
+
+/* ---------- Monthly per-habit stats table ---------- */
+
+.habit-stats-title {
+  margin: 0 0 16px;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 15px;
+  text-align: center;
+}
+
+.habit-stats-group + .habit-stats-group {
+  margin-top: 20px;
+}
+
+.habit-stats-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.habit-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.habit-stats-table tr + tr {
+  border-top: 1px solid #f1e2c4;
+}
+
+.habit-stats-name {
+  padding: 9px 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.habit-stats-count {
+  padding: 9px 4px;
+  text-align: right;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent-dark);
+  white-space: nowrap;
+}
+
+.habit-stats-slash {
+  color: var(--muted);
+  font-weight: 500;
+  margin: 0 2px;
+}
+
+.habit-stats-empty {
+  padding: 10px 4px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}

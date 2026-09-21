@@ -800,7 +800,7 @@
       else runCompleteSequence(true);
     }
 
-    return { getHistory: () => history };
+    return { getHistory: () => history, getHabits: () => habits };
   }
 
   const defaultTracker = createTracker({
@@ -812,7 +812,7 @@
     },
     hasEmoji: false,
     sliced: true,
-    onHistoryChange: () => renderCalendar(),
+    onHistoryChange: () => renderMonth(),
   });
 
   const customTracker = createTracker({
@@ -824,7 +824,7 @@
     },
     hasEmoji: true,
     sliced: false,
-    onHistoryChange: () => renderCalendar(),
+    onHistoryChange: () => renderMonth(),
   });
 
   // ---------- mode tabs ----------
@@ -935,17 +935,69 @@
     }
   }
 
+  // ---------- monthly per-habit completion counts ----------
+
+  const statsSub = document.getElementById("stats-sub");
+  const statsDefaultBody = document.querySelector("#habit-stats-default tbody");
+  const statsCustomBody = document.querySelector("#habit-stats-custom tbody");
+
+  function renderHabitStatsTable(tbody, tracker, hasEmoji) {
+    tbody.innerHTML = "";
+    const monthPrefix = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-`;
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const monthEntries = tracker.getHistory().filter((h) => h.date.startsWith(monthPrefix));
+    const habits = tracker.getHabits();
+
+    if (habits.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 2;
+      td.className = "habit-stats-empty";
+      td.textContent = "아직 등록된 습관이 없어요.";
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
+    habits.forEach((habit) => {
+      const count = monthEntries.filter((e) => e.names && e.names.includes(habit.name)).length;
+      const tr = document.createElement("tr");
+
+      const nameTd = document.createElement("td");
+      nameTd.className = "habit-stats-name";
+      nameTd.textContent = hasEmoji ? `${habit.topping || "🍕"} ${habit.name}` : habit.name;
+
+      const countTd = document.createElement("td");
+      countTd.className = "habit-stats-count";
+      countTd.innerHTML = `${count}<span class="habit-stats-slash">/</span>${daysInMonth}`;
+
+      tr.append(nameTd, countTd);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderHabitStats() {
+    statsSub.textContent = `· ${calYear}년 ${calMonth + 1}월`;
+    renderHabitStatsTable(statsDefaultBody, defaultTracker, false);
+    renderHabitStatsTable(statsCustomBody, customTracker, true);
+  }
+
+  function renderMonth() {
+    renderCalendar();
+    renderHabitStats();
+  }
+
   calPrevBtn.addEventListener("click", () => {
     calMonth--;
     if (calMonth < 0) { calMonth = 11; calYear--; }
-    renderCalendar();
+    renderMonth();
   });
 
   calNextBtn.addEventListener("click", () => {
     calMonth++;
     if (calMonth > 11) { calMonth = 0; calYear++; }
-    renderCalendar();
+    renderMonth();
   });
 
-  renderCalendar();
+  renderMonth();
 })();
