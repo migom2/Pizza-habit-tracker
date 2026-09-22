@@ -993,47 +993,68 @@
   const dayEditCancelBtn = document.getElementById("day-edit-cancel");
   const dayEditSaveBtn = document.getElementById("day-edit-save");
 
-  function openDayEdit(dateStr) {
-    const tracker = currentMode === "custom" ? customTracker : defaultTracker;
-    const habits = tracker.getHabits();
-    const entry = tracker.getEntryForDate(dateStr);
-    const doneNames = new Set(entry ? entry.names : []);
+  const DAY_EDIT_GROUPS = [
+    { tracker: defaultTracker, key: "default", label: "🍕 기본" },
+    { tracker: customTracker, key: "custom", label: "🎨 커스텀" },
+  ];
 
+  function openDayEdit(dateStr) {
     const [, m, d] = dateStr.split("-").map(Number);
     dayEditTitle.textContent = `${m}월 ${d}일 기록 수정`;
-    dayEditSub.textContent = (currentMode === "custom" ? "🎨 커스텀" : "🍕 기본") + " 트래커에서 완료한 습관을 체크해주세요";
+    dayEditSub.textContent = "완료한 습관을 체크해주세요";
 
     dayEditList.innerHTML = "";
 
-    if (habits.length === 0) {
-      const li = document.createElement("li");
-      li.className = "day-edit-empty";
-      li.textContent = "등록된 습관이 없어요.";
-      dayEditList.appendChild(li);
-    } else {
-      habits.forEach((habit) => {
-        const li = document.createElement("li");
-        li.className = "day-edit-item";
+    DAY_EDIT_GROUPS.forEach(({ tracker, key, label }) => {
+      const habits = tracker.getHabits();
+      const entry = tracker.getEntryForDate(dateStr);
+      const doneNames = new Set(entry ? entry.names : []);
 
-        const label = document.createElement("label");
+      const group = document.createElement("li");
+      group.className = "day-edit-group";
 
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.value = habit.id;
-        checkbox.checked = doneNames.has(habit.name);
-        label.appendChild(checkbox);
+      const groupLabel = document.createElement("div");
+      groupLabel.className = "day-edit-group-label";
+      groupLabel.textContent = label;
+      group.appendChild(groupLabel);
 
-        const span = document.createElement("span");
-        span.textContent = habit.topping ? `${habit.topping} ${habit.name}` : habit.name;
-        label.appendChild(span);
+      if (habits.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "day-edit-empty";
+        empty.textContent = "등록된 습관이 없어요.";
+        group.appendChild(empty);
+      } else {
+        const sublist = document.createElement("ul");
+        sublist.className = "day-edit-sublist";
 
-        li.appendChild(label);
-        dayEditList.appendChild(li);
-      });
-    }
+        habits.forEach((habit) => {
+          const li = document.createElement("li");
+          li.className = "day-edit-item";
+
+          const habitLabel = document.createElement("label");
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.value = habit.id;
+          checkbox.dataset.tracker = key;
+          checkbox.checked = doneNames.has(habit.name);
+          habitLabel.appendChild(checkbox);
+
+          const span = document.createElement("span");
+          span.textContent = habit.topping ? `${habit.topping} ${habit.name}` : habit.name;
+          habitLabel.appendChild(span);
+
+          li.appendChild(habitLabel);
+          sublist.appendChild(li);
+        });
+
+        group.appendChild(sublist);
+      }
+
+      dayEditList.appendChild(group);
+    });
 
     dayEditOverlay.dataset.date = dateStr;
-    dayEditOverlay.dataset.mode = currentMode;
     dayEditOverlay.hidden = false;
   }
 
@@ -1048,10 +1069,12 @@
 
   dayEditSaveBtn.addEventListener("click", () => {
     const dateStr = dayEditOverlay.dataset.date;
-    const mode = dayEditOverlay.dataset.mode;
-    const tracker = mode === "custom" ? customTracker : defaultTracker;
-    const checkedIds = Array.from(dayEditList.querySelectorAll("input[type=checkbox]:checked")).map((cb) => cb.value);
-    tracker.setHistoryForDate(dateStr, checkedIds);
+    DAY_EDIT_GROUPS.forEach(({ tracker, key }) => {
+      const checkedIds = Array.from(
+        dayEditList.querySelectorAll(`input[data-tracker="${key}"]:checked`)
+      ).map((cb) => cb.value);
+      tracker.setHistoryForDate(dateStr, checkedIds);
+    });
     closeDayEdit();
   });
 
