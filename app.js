@@ -818,7 +818,30 @@
       else runCompleteSequence(true);
     }
 
-    return { getHistory: () => history, getHabits: () => habits };
+    function setHistoryForDate(dateStr, checkedIds) {
+      if (dateStr >= today) return;
+      history = history.filter((h) => h.date !== dateStr);
+      if (checkedIds.length > 0) {
+        const checkedHabits = habits.filter((h) => checkedIds.includes(h.id));
+        const entry = {
+          date: dateStr,
+          names: checkedHabits.map((h) => h.name),
+          full: checkedHabits.length === habits.length && habits.length > 0,
+        };
+        if (!cfg.sliced) entry.layout = buildToppingLayout(checkedHabits);
+        history.push(entry);
+      }
+      persistHistory();
+      renderStats();
+      if (cfg.onHistoryChange) cfg.onHistoryChange();
+    }
+
+    return {
+      getHistory: () => history,
+      getHabits: () => habits,
+      getEntryForDate: (dateStr) => history.find((h) => h.date === dateStr),
+      setHistoryForDate,
+    };
   }
 
   const defaultTracker = createTracker({
@@ -850,7 +873,10 @@
   const tabButtons = document.querySelectorAll(".mode-tab");
   const panels = document.querySelectorAll(".mode-panel");
 
+  let currentMode = "default";
+
   function setActiveMode(mode) {
+    currentMode = mode;
     tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
     panels.forEach((p) => { p.hidden = p.dataset.panel !== mode; });
     try { localStorage.setItem("pizza-tracker-active-mode", mode); } catch { /* ignore */ }
@@ -903,6 +929,11 @@
       num.textContent = String(d);
       cell.appendChild(num);
 
+      if (dateStr < today) {
+        cell.classList.add("editable");
+        cell.addEventListener("click", () => openDayEdit(dateStr));
+      }
+
       const defaultEntry = defaultByDate.get(dateStr);
       const customEntry = customByDate.get(dateStr);
 
@@ -952,6 +983,77 @@
       calGrid.appendChild(cell);
     }
   }
+
+  // ---------- past-day edit modal ----------
+
+  const dayEditOverlay = document.getElementById("day-edit-overlay");
+  const dayEditTitle = document.getElementById("day-edit-title");
+  const dayEditSub = document.getElementById("day-edit-sub");
+  const dayEditList = document.getElementById("day-edit-list");
+  const dayEditCancelBtn = document.getElementById("day-edit-cancel");
+  const dayEditSaveBtn = document.getElementById("day-edit-save");
+
+  function openDayEdit(dateStr) {
+    const tracker = currentMode === "custom" ? customTracker : defaultTracker;
+    const habits = tracker.getHabits();
+    const entry = tracker.getEntryForDate(dateStr);
+    const doneNames = new Set(entry ? entry.names : []);
+
+    const [, m, d] = dateStr.split("-").map(Number);
+    dayEditTitle.textContent = `${m}월 ${d}일 기록 수정`;
+    dayEditSub.textContent = (currentMode === "custom" ? "🎨 커스텀" : "🍕 기본") + " 트래커에서 완료한 습관을 체크해주세요";
+
+    dayEditList.innerHTML = "";
+
+    if (habits.length === 0) {
+      const li = document.createElement("li");
+      li.className = "day-edit-empty";
+      li.textContent = "등록된 습관이 없어요.";
+      dayEditList.appendChild(li);
+    } else {
+      habits.forEach((habit) => {
+        const li = document.createElement("li");
+        li.className = "day-edit-item";
+
+        const label = document.createElement("label");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = habit.id;
+        checkbox.checked = doneNames.has(habit.name);
+        label.appendChild(checkbox);
+
+        const span = document.createElement("span");
+        span.textContent = habit.topping ? `${habit.topping} ${habit.name}` : habit.name;
+        label.appendChild(span);
+
+        li.appendChild(label);
+        dayEditList.appendChild(li);
+      });
+    }
+
+    dayEditOverlay.dataset.date = dateStr;
+    dayEditOverlay.dataset.mode = currentMode;
+    dayEditOverlay.hidden = false;
+  }
+
+  function closeDayEdit() {
+    dayEditOverlay.hidden = true;
+  }
+
+  dayEditCancelBtn.addEventListener("click", closeDayEdit);
+  dayEditOverlay.addEventListener("click", (e) => {
+    if (e.target === dayEditOverlay) closeDayEdit();
+  });
+
+  dayEditSaveBtn.addEventListener("click", () => {
+    const dateStr = dayEditOverlay.dataset.date;
+    const mode = dayEditOverlay.dataset.mode;
+    const tracker = mode === "custom" ? customTracker : defaultTracker;
+    const checkedIds = Array.from(dayEditList.querySelectorAll("input[type=checkbox]:checked")).map((cb) => cb.value);
+    tracker.setHistoryForDate(dateStr, checkedIds);
+    closeDayEdit();
+  });
 
   // ---------- monthly per-habit completion counts ----------
 

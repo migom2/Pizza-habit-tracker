@@ -21,7 +21,7 @@
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍕</text></svg>" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:wght@500;600&display=swap" />
-    <link rel="stylesheet" href="style.css?v=10" />
+    <link rel="stylesheet" href="style.css?v=11" />
   </head>
   <body>
     <div class="wrap">
@@ -144,6 +144,7 @@
           <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
+        <p class="calendar-hint">지난 날짜를 누르면 그날 완료한 습관을 나중에라도 체크할 수 있어요</p>
       </section>
 
       <section class="calendar habit-stats">
@@ -165,6 +166,18 @@
       </section>
     </div>
 
-    <script src="app.js?v=10"></script>
+    <div class="day-edit-overlay" id="day-edit-overlay" hidden>
+      <div class="day-edit-modal">
+        <h4 class="day-edit-title" id="day-edit-title"></h4>
+        <p class="day-edit-sub" id="day-edit-sub"></p>
+        <ul class="day-edit-list" id="day-edit-list"></ul>
+        <div class="day-edit-actions">
+          <button type="button" class="day-edit-cancel" id="day-edit-cancel">취소</button>
+          <button type="button" class="day-edit-save" id="day-edit-save">저장</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js?v=11"></script>
   </body>
 </html>
